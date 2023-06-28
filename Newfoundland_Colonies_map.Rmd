@@ -1,0 +1,154 @@
+---
+title: "NL Colonies Map"
+author: "Gretchen McPhail and Sydney Collins"
+date: "2023-06-26"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r Load Packages}
+rm(list=ls())
+library(tidyverse)
+library(sf)
+library(cowplot)
+library(legendMap)
+library(rlang)
+require(gridExtra)
+require(raster)
+library(maps)
+library(ggforce)
+require(grid)
+load("data/Canada.Rda")
+```
+
+```{r map of NL}
+##inset map
+main_map <- ggplot() +
+  xlab("") + 
+  ylab("") +
+  coord_map(xlim = c(-66, -45.5), ylim = c(40, 54.5))+
+  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey")+
+  theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.text.x = element_text(size = 16), axis.text.y = element_text(size = 16))
+
+main_map
+
+main_map+
+  coord_sf(
+    xlim = c(-56.5, -52.5),
+    ylim = c(46.5, 49), 
+    expand = FALSE)+
+  theme(axis.text.x = element_blank(), axis.text.y = element_blank(), axis.ticks.x = element_blank(), axis.ticks.y = element_blank())
+
+ggdraw(main_map)+
+  draw_plot(
+    {
+    main_map+
+      coord_sf(
+         xlim = c(-56.5, -52.5),
+         ylim = c(46.5, 49), 
+         expand = FALSE) +
+      theme(axis.text.x = element_blank(), axis.text.y = element_blank(), axis.ticks.x = element_blank(), axis.ticks.y = element_blank(),legend.position = "none")
+  },
+x= 0.47,
+y= 0.02,
+width = 0.50,
+height = 0.50)
+
+install.packages("plotly")
+library(plotly)
+
+main_map <- main_map +
+  geom_rect(
+    xmin = -56.5,
+    ymin = 46.5,
+    xmax = -52.5,
+    ymax = 49,
+    fill = NA,
+    colour = "black",
+    linewidth = 0.16
+  )
+
+
+main_map %>%
+  ggdraw() + 
+  draw_plot(
+    {
+      main_map+
+      coord_sf(
+         xlim = c(-56.5, -52.5),
+         ylim = c(46.5, 49), 
+         expand = FALSE) +
+      theme(axis.text.x = element_blank(), axis.text.y = element_blank(), axis.ticks.x = element_blank(), axis.ticks.y = element_blank(),legend.position = "none")
+  },
+x= 0.47,
+y= 0.01,
+width = 0.50,
+height = 0.50)
+
+## colony map
+
+ggplot() +
+  coord_fixed() +
+  xlab("") + 
+  ylab("") +
+  coord_map(xlim = c(-64, -52), ylim = c(46, 52.5))+
+  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey")+
+  geom_point(aes(x = -54.20002, y = 46.81708), size = 3)+
+  geom_point(aes(x = -55.61898, y = 46.86369), size = 3)+
+  geom_point(aes(x = -52.83211, y = 47.28254), size = 3)+
+  geom_point(aes(x = -61.11830, y = 47.90473), size = 3)+
+  geom_point(aes(x = -52.79691, y = 48.15237), size = 3)+
+  geom_point(aes(x = -53.19090, y = 49.82036), size = 3)+
+  geom_point(aes(x = -55.95387, y = 51.26532), size = 3)+
+  theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.text.x = element_text(size = 16), axis.text.y = element_text(size = 16), )
+
+```
+
+```{r Map with Inset}
+CSM <- as.data.frame(cbind(46.831944, -54.165833))
+BC <- as.data.frame(cbind(48.130278, -52.801389))
+Funk <- as.data.frame(cbind(49.756667, -53.183889))
+BA <- as.data.frame(cbind(48.495, -64.165))
+AT <- as.data.frame(cbind(49.2, -61.6))
+GBR <- as.data.frame(cbind(47.8, -61.0))
+MG <- as.data.frame(cbind(47.448333, -61.752222))
+LAWN <- as.data.frame(cbind(46.869038, -55.617111))
+HARE <- as.data.frame(cbind(48.859109, -54.002531))
+
+main_map <- ggplot() +
+  xlab("Longitude") + 
+  ylab("Latitude") +
+  coord_map(xlim = c(-66, -48), ylim = c(43, 54.5))+
+  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
+  geom_point(data = MG, aes(y = V1, x = V2), size = 3) +
+  geom_point(data = CSM, aes(y = V1, x = V2), size = 3)+
+  geom_point(data = BC, aes(y = V1, x = V2), size = 3)+
+  geom_point(data = Funk, aes(y = V1, x = V2), size = 3)+
+  geom_point(data = LAWN, aes(y = V1, x = V2), size = 3)+
+  geom_point(data = HARE, aes(y = V1, x = V2), size = 3)+
+  annotate("text", cex = 2.5, x = c(-61.1, -53, -56, -62.8, -57.5, -64, -51.4, -52.1, -55.5, -53), y = c(47.8, 46.5, 48.5, 45.2, 52.5, 51.5, 48.3, 49.9, 46.7, 48.85), label= c("Îles-de-la-Madeleine", "Cape St. Mary's", "Newfoundland", "Nova Scotia", "Labrador", "Québec", "Baccalieu Island","Funk Island", "Lawn Islands", "Hare Bay")) +
+  theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.text.x = element_text(size = 16), axis.text.y = element_text(size = 16))
+main_map
+
+world_map <- map_data("world")
+
+ph1 <- getData("GADM", country = "CAN", level = 1)
+
+pol <- data.frame(xmin = -66, xmax = -48, ymin = 43, ymax = 54.5)
+
+p2 <- ggplot() +
+  geom_map(data = world_map, map = world_map, aes(long, lat, map_id = region), color = "black", fill = "lightgray", size = 0.1) +
+  geom_rect(data = pol, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax), alpha = 0, colour = "red", size = 1, linetype = 1) +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), axis.text.x = element_blank(), axis.text.y = element_blank(), axis.ticks = element_blank(), axis.title.x = element_blank(), axis.title.y = element_blank(), plot.margin = unit(c(-1,-1,-1,-1),"mm"))
+
+
+jpeg(filename = "figures/Figure1_Full_map.jpeg", units = "mm", width = 180, height = 150, res = 300)
+grid.newpage()
+v1<-viewport(width = 1, height = 1, x = 0.5, y = 0.5) #plot area for the main map
+v2<-viewport(width = 0.25, height = 0.18, x = 0.78, y = 0.87) #plot area for the inset map
+print(main_map,vp=v1) 
+print(p2,vp=v2)
+dev.off()
+
+```

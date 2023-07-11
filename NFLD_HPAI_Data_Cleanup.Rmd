@@ -15,14 +15,16 @@ library(lubridate)
 ```
 
 ```{r download and organize data}
-#load data
+#create dataset of just seabirds
 hpai <- read.csv("data/2023-06-22_HPAI_Mortality_Tracker - Newfoundland.csv", na = "NA") %>%
   select(UniqueID, SiteName, Year, Month, Day, DateObserved, Lat, Long, SpeciesAlphaCode, GroupAs, Individual_HPAIVstatus, AgeClass, LandWater, Colony_Y_N,  IFcolony_complete_partial_survey, TotalObserved) %>%
   dplyr::rename(Species = SpeciesAlphaCode, Date = DateObserved, Total = TotalObserved) %>%
   mutate(Date = as.Date(Date)) %>%
   mutate(TotalCat = ifelse(Total > 50, "> 50", ifelse(Total < 10, "< 10", "10 to 50"))) %>%
-  filter(GroupAs %>% str_detect("seabirds|raptors")) %>%
-  filter(Individual_HPAIVstatus == "positive" | is.na(Individual_HPAIVstatus))
+  filter(GroupAs %>% str_detect("seabirds")) %>%
+  filter(Individual_HPAIVstatus == "positive" | is.na(Individual_HPAIVstatus)) %>%
+  select(-GroupAs) %>%
+  arrange(Date)
 
 ggplot(data = hpai, aes(x = Species)) +
   geom_bar() +

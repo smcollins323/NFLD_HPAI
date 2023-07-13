@@ -26,6 +26,8 @@ hpai <- read.csv("data/2023-06-22_HPAI_Mortality_Tracker - Newfoundland.csv", na
   select(-GroupAs) %>%
   arrange(Date)
 
+hpai$TotalCat <- factor(hpai$TotalCat, levels=c('< 10', '10 to 50', '> 50'))
+
 ggplot(data = hpai, aes(x = Species)) +
   geom_bar() +
   theme_classic()

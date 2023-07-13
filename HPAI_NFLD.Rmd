@@ -20,6 +20,7 @@ library(maps)
 library(mapproj)
 library(patchwork)
 library(magick)
+library(scales)
 
 load("data/top4.Rda")
 load("data/hpai.Rda")
@@ -31,11 +32,11 @@ load("data/Canada.Rda")
 whole_dataset <- read.csv("data/2023-06-22_HPAI_Mortality_Tracker - Newfoundland.csv", na = "NA")
 
 #Total mortality
-sum(whole_dataset$TotalObserved)
 sum(hpai$Total)
+sum(whole_dataset$TotalObserved)
 
 #Total mortality by species
-all_birds <- summaryBy(TotalObserved ~ CommonName, data = whole_dataset, FUN = "sum")
+summaryBy(TotalObserved ~ CommonName, data = whole_dataset, FUN = "sum")
 summaryBy(Total ~ Species, data = hpai, FUN = "sum")
 
 #Total Mortality by Month
@@ -44,17 +45,23 @@ summaryBy(Total ~ Month, data = hpai, FUN = "sum")
 
 #Static Maps
 ```{r Species Maps}
+species_map_data <- summaryBy(Total ~ Lat + Long + Species, data = top4, FUN = sum) %>%
+  mutate(TotalCat = ifelse(Total.sum > 50, "> 50", ifelse(Total.sum < 10, "< 10", "10 to 50")))
+
 ggplot() +
   coord_map(xlim = c(-60, -51), ylim = c(46, 53)) +
   xlab("") + 
   ylab("") +
   geom_polygon(data = Canada, aes(y = lat, x = long, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "A", discrete = T)+
-  geom_point(data = top4 %>% filter(Long < 0), aes(y = Lat, x = Long, colour = TotalCat, shape = Species)) +
+  scale_colour_viridis(discrete = T, option = "D")+
+  geom_point(data = species_map_data %>% filter(Long < 0), aes(y = Lat, x = Long, colour = TotalCat, shape = Species)) +
   theme(panel.background = element_rect(fill = 'white', colour = 'black'))
 
 #combine plots (Common Murre, Northern Gannet, Atlantic Puffin, Black-Legged Kittiwake)
 #four species with highest observations (excluding other)
+#Puffins and Kittiwakes do not have an observation >50 so it changes the colours - make sure colours are the same
+show_col(viridis_pal(option = "D")(6))
+cols <- c("< 10" = "#440154FF", "10 to 50" = "#21908CFF", "> 50" = "#7AD151FF")
 
 a <- ggplot() +
   coord_fixed() +
@@ -63,10 +70,11 @@ a <- ggplot() +
   ggtitle("Northern Gannet") +
   coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "D", discrete = T)+
-  geom_point(data = top4 %>% filter(Species == "NOGA"), aes(y = Lat, x = Long, colour = TotalCat), size = 1) +
+  scale_colour_manual(name = "Total", values = cols)+
+  geom_point(data = species_map_data %>% filter(Species == "NOGA"), aes(y = Lat, x = Long, colour = TotalCat), size = 1.5) +
   guides(colour = guide_legend(title = "Number of Carcasses"))+
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "top", axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "none", axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+a
 
 b <- ggplot() +
   xlab("") + 
@@ -74,9 +82,10 @@ b <- ggplot() +
   ggtitle("Common Murre") +
   coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "D", discrete = T)+
-  geom_point(data = top4 %>% filter(Species == "COMU"), aes(y = Lat, x = Long, colour = TotalCat), size = 1) +
+  scale_colour_manual(values = cols)+
+  geom_point(data = species_map_data %>% filter(Species == "COMU"), aes(y = Lat, x = Long, colour = TotalCat), size = 1.5) +
   theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "none", axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+b
 
 c <- ggplot() +
   xlab("") + 
@@ -84,9 +93,10 @@ c <- ggplot() +
   ggtitle("Atlantic Puffin") +
   coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "D", discrete = T)+
-  geom_point(data = top4 %>% filter(Species == "ATPU"), aes(y = Lat, x = Long, colour = TotalCat), size = 1) +
+  scale_colour_manual(values = cols)+
+  geom_point(data = species_map_data %>% filter(Species == "ATPU"), aes(y = Lat, x = Long, colour = TotalCat), size = 1.5) +
   theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "none", axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+c
 
 d <- ggplot() +
   xlab("") + 
@@ -94,9 +104,10 @@ d <- ggplot() +
   ggtitle("Black-legged Kittiwake") +
   coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "D", discrete = T)+
-  geom_point(data = top4 %>% filter(Species == "BLKI"), aes(y = Lat, x = Long, colour = TotalCat), size = 1) +
+  scale_colour_manual(values = cols)+
+  geom_point(data = species_map_data %>% filter(Species == "BLKI"), aes(y = Lat, x = Long, colour = TotalCat), size = 1.5) +
   theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "none", axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+d
 
 jpeg(filename = "figures/Species_map.jpeg", width = 18, height = 20, units = "cm", res = 300)
 a + b + d + c
@@ -104,6 +115,9 @@ dev.off()
 ```
 
 ```{r Monthly Maps}
+monthly_map_data <- summaryBy(Total ~ Lat + Long + Month, data = hpai, FUN = sum) %>%
+  mutate(TotalCat = ifelse(Total.sum > 50, "> 50", ifelse(Total.sum < 10, "< 10", "10 to 50")))
+
 #combine plots (May+June, July, August, September)
 
 e <- ggplot() +
@@ -113,7 +127,7 @@ e <- ggplot() +
   ggtitle("May/June")+
   coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "A", discrete = TRUE)+
+  scale_colour_manual(values = cols)+
   geom_point(data = top4 %>% filter(Month < 7), aes(y = Lat, x = Long, colour = TotalCat))+
   theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 12), legend.position = "none", axis.text.y = element_text(size = 12))
 
@@ -124,7 +138,7 @@ f <- ggplot() +
   ggtitle("July")+
   coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "A", discrete = TRUE)+
+  scale_colour_manual(values = cols)+
   geom_point(data = top4 %>% filter(Month == 7), aes(y = Lat, x = Long, colour = TotalCat))+
   theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "none", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12))
 
@@ -135,7 +149,7 @@ g <- ggplot() +
   ggtitle("August")+
   coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "A", discrete = TRUE)+
+  scale_colour_manual(values = cols)+
   geom_point(data = top4 %>% filter(Month == 8), aes(y = Lat, x = Long, colour = TotalCat))+
   theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "none", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12))
 
@@ -146,7 +160,7 @@ h <- ggplot() +
   ggtitle("September")+
   coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "A", discrete = TRUE)+
+  scale_colour_manual(values = cols)+
   geom_point(data = top4 %>% filter(Month == 9), aes(y = Lat, x = Long, colour = TotalCat))+
   theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "none", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12))
 
@@ -207,10 +221,13 @@ image_write(image = img_animated, path = "figures/Maps.gif")
 ```
 
 ```{r Cumulative Daily Maps}
-#make a map for each day
-id_arr2 <- unique(hpai$Date)
+gif_data <- summaryBy(Total ~ Date + Lat + Long, data = hpai, FUN = sum) %>%
+  mutate(TotalCat = ifelse(Total.sum > 50, "> 50", ifelse(Total.sum < 10, "< 10", "10 to 50")))
 
-sub_id2 = subset(hpai, Date <= "2022-07-12")
+#make a map for each day
+id_arr2 <- unique(gif_data$Date)
+
+sub_id2 = subset(gif_data, Date <= "2022-07-12")
 sub_title2 = sub_id2[nrow(sub_id2),]$Date
   
 ggplot() +
@@ -220,12 +237,12 @@ ggplot() +
   ggtitle(sub_title2) +
   coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "A", discrete = TRUE)+
+  scale_colour_manual(values = cols) +
   geom_point(data = sub_id2, aes(y = Lat, x = Long, colour = TotalCat))+
   theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "right", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12))
 
 for(i in id_arr2) {
-  sub_id2 = subset(hpai, Date <= i)
+  sub_id2 = subset(gif_data, Date <= i)
   
   sub_title2 = sub_id2[nrow(sub_id2),]$Date
   
@@ -238,7 +255,7 @@ for(i in id_arr2) {
   ggtitle(sub_title2) +
   coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "A", discrete = TRUE)+
+  scale_colour_manual(values = cols) +
   geom_point(data = sub_id2, aes(y = Lat, x = Long, colour = TotalCat, size = TotalCat))+
   theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "none", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12)))
   
@@ -257,7 +274,7 @@ image_write(image = img_animated2, path = "figures/CumulativeMaps.gif")
 
 #Peak Mortality
 ``` {r Time series plot}
-freqplot_all <- summaryBy(Total ~ Date, data = top4 %>% drop_na(Total), FUN = c(sum))
+freqplot_all <- summaryBy(Total ~ Date, data = hpai, FUN = c(sum))
 
 jpeg(filename = "figures/scatterplot.jpeg", width = 15, height = 10, units = "cm", res = 300)
 ggplot(data = freqplot_all, aes(y = Total.sum, x = Date)) +
@@ -269,6 +286,15 @@ ggplot(data = freqplot_all, aes(y = Total.sum, x = Date)) +
   xlab("Month")+
  theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text(size = 12), axis.text.x = element_text(vjust = 0.5, size = 12, colour = "black"), axis.text.y = element_text(size = 12, colour = "black"))
 dev.off()
+```
+
+#Expansion Factors
+```{r Expansion Factors}
+sum(hpai %>% filter(Species == "COMU") %>% dplyr::select(Total)) * 10
+sum(hpai %>% filter(Species == "COMU") %>% dplyr::select(Total)) * 22
+
+sum(hpai %>% filter(Species == "NOGA") %>% dplyr::select(Total)) * 3
+sum(hpai %>% filter(Species == "COMU") %>% dplyr::select(Total)) * 7
 ```
 
 

@@ -21,270 +21,590 @@ library(mapproj)
 library(patchwork)
 library(magick)
 library(scales)
+library(RColorBrewer)
+library(legendMap)
 
-load("data/top4.Rda")
 load("data/hpai.Rda")
 load("data/Canada.Rda")
 ```
 
 #Summary Stats
 ```{r Summary stats}
-whole_dataset <- read.csv("data/2023-06-22_HPAI_Mortality_Tracker - Newfoundland.csv", na = "NA")
-
 #Total mortality
 sum(hpai$Total)
-sum(whole_dataset$TotalObserved)
 
 #Total mortality by species
-summaryBy(TotalObserved ~ CommonName, data = whole_dataset, FUN = "sum")
 summaryBy(Total ~ Species, data = hpai, FUN = "sum")
 
 #Total Mortality by Month
 summaryBy(Total ~ Month, data = hpai, FUN = "sum")
+
+#Bar graph of species losses
+all_species <- as.data.frame(summaryBy(Total ~ Species, FUN = sum, data = hpai))
+    #Why is there a separate group for terns, kits, and gulls?
+
+ggplot(data = all_species, aes(x = reorder(Species, Total.sum, function(x)-sum(x)), y = Total.sum)) +
+  ylab("Total Mortalities (log scale)") +
+  xlab("Species") +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(trans='log10') +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), axis.text.x = element_text(angle = 45, hjust=1))
 ```
 
 #Static Maps
 ```{r Species Maps}
-species_map_data <- summaryBy(Total ~ Lat + Long + Species, data = top4, FUN = sum) %>%
-  mutate(TotalCat = ifelse(Total.sum > 50, "> 50", ifelse(Total.sum < 10, "< 10", "10 to 50")))
+#Create object that summarizes number of mortalities per location per species
+#Need to add a fake data point for ATPU as there were no observations that fell into the >50 category
+#Arranging the data the way I did makes it so this fake point is hidden but the legend and point colours are still correct
+#This additional point is ONLY used for this map and not for summary statistics
 
+#TODO: try making the lat and long less refined to combine more points
+#TODO: add scale bar and North arrow
+
+species_map_data <- summaryBy(Total ~ Lat + Long + Top4, data = hpai, FUN = sum) %>%
+  mutate(TotalCat = ifelse(Total.sum > 1000, "1000+", ifelse(Total.sum > 500, "500-1000", ifelse(Total.sum > 100, "100-500", ifelse(Total.sum > 50, "50-100", ifelse(Total.sum > 10, "10-50", "1-10")))))) %>%
+  add_row(Lat = NA, Long = NA, Top4 = "NOGA", Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Top4 = "ATPU", Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Top4 = "BLKI", Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Top4 = "COMU", Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Top4 = "ATPU", Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Top4 = "ATPU", Total.sum = NA, TotalCat = "100-500") %>%
+  add_row(Lat = NA, Long = NA, Top4 = "ATPU", Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Top4 = "BLKI", Total.sum = NA, TotalCat = "100-500") %>%
+  add_row(Lat = NA, Long = NA, Top4 = "BLKI", Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Top4 = "COMU", Total.sum = NA, TotalCat = "1000+") %>%
+  arrange(Top4, Total.sum) %>%
+  mutate(TotalCat = factor(TotalCat, levels = c("1-10", "10-50", "50-100", "100-500", "500-1000", "1000+"))) %>%
+  arrange(Total.sum)
+
+#Map of all species
 ggplot() +
-  coord_map(xlim = c(-60, -51), ylim = c(46, 53)) +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   xlab("") + 
   ylab("") +
   geom_polygon(data = Canada, aes(y = lat, x = long, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(discrete = T, option = "D")+
-  geom_point(data = species_map_data %>% filter(Long < 0), aes(y = Lat, x = Long, colour = TotalCat, shape = Species)) +
+  scale_colour_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = species_map_data %>% filter(Long < 0), aes(y = Lat, x = Long, colour = TotalCat, shape = Top4)) +
   theme(panel.background = element_rect(fill = 'white', colour = 'black'))
 
 #combine plots (Common Murre, Northern Gannet, Atlantic Puffin, Black-Legged Kittiwake)
 #four species with highest observations (excluding other)
-#Puffins and Kittiwakes do not have an observation >50 so it changes the colours - make sure colours are the same
-show_col(viridis_pal(option = "D")(6))
-cols <- c("< 10" = "#440154FF", "10 to 50" = "#21908CFF", "> 50" = "#7AD151FF")
-
-a <- ggplot() +
-  coord_fixed() +
+NOGA_map <- ggplot() +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   xlab("") + 
   ylab("") +
   ggtitle("Northern Gannet") +
-  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
-  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_manual(name = "Total", values = cols)+
-  geom_point(data = species_map_data %>% filter(Species == "NOGA"), aes(y = Lat, x = Long, colour = TotalCat), size = 1.5) +
-  guides(colour = guide_legend(title = "Number of Carcasses"))+
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "none", axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
-a
+  geom_polygon(data = Canada, aes(y = lat, x = long, group = group), colour = "black", fill = "lightgrey") +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = species_map_data %>% filter(Top4 == "NOGA"), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'))
+NOGA_map
 
-b <- ggplot() +
+COMU_map <- ggplot() +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   xlab("") + 
   ylab("") +
   ggtitle("Common Murre") +
-  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
-  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_manual(values = cols)+
-  geom_point(data = species_map_data %>% filter(Species == "COMU"), aes(y = Lat, x = Long, colour = TotalCat), size = 1.5) +
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "none", axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
-b
+  geom_polygon(data = Canada, aes(y = lat, x = long, group = group), colour = "black", fill = "lightgrey") +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = species_map_data %>% filter(Top4 == "COMU"), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black')) +
+  scale_bar(lon = -55, lat = 41.5, distance_lon = 200, distance_lat = 50, distance_legend = 100, dist_unit = "km", orientation = T, arrow_length = 80, arrow_distance = 1100)
+COMU_map
 
-c <- ggplot() +
+ATPU_map <- ggplot() +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   xlab("") + 
   ylab("") +
   ggtitle("Atlantic Puffin") +
-  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
-  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_manual(values = cols)+
-  geom_point(data = species_map_data %>% filter(Species == "ATPU"), aes(y = Lat, x = Long, colour = TotalCat), size = 1.5) +
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "none", axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
-c
+  geom_polygon(data = Canada, aes(y = lat, x = long, group = group), colour = "black", fill = "lightgrey") +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = species_map_data %>% filter(Top4 == "ATPU"), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black')) +
+  scale_bar(lon = -59.5, lat = 45.9, distance_lon = 150, distance_lat = 30, distance_legend = 60, dist_unit = "km", orientation = F)
+ATPU_map
 
-d <- ggplot() +
+BLKI_map <- ggplot() +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   xlab("") + 
   ylab("") +
   ggtitle("Black-legged Kittiwake") +
-  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
-  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_manual(values = cols)+
-  geom_point(data = species_map_data %>% filter(Species == "BLKI"), aes(y = Lat, x = Long, colour = TotalCat), size = 1.5) +
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "none", axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
-d
+  geom_polygon(data = Canada, aes(y = lat, x = long, group = group), colour = "black", fill = "lightgrey") +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = species_map_data %>% filter(Top4 == "BLKI"), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'))
+BLKI_map
 
-jpeg(filename = "figures/Species_map.jpeg", width = 18, height = 20, units = "cm", res = 300)
-a + b + d + c
+jpeg(filename = "figures/Species_map.jpeg", width = 16, height = 15, units = "cm", res = 300)
+NOGA_map + COMU_map + ATPU_map + BLKI_map + plot_layout(guides = "collect")
 dev.off()
 ```
 
 ```{r Monthly Maps}
 monthly_map_data <- summaryBy(Total ~ Lat + Long + Month, data = hpai, FUN = sum) %>%
-  mutate(TotalCat = ifelse(Total.sum > 50, "> 50", ifelse(Total.sum < 10, "< 10", "10 to 50")))
+  mutate(TotalCat = ifelse(Total.sum > 1000, "1000+", ifelse(Total.sum > 500, "500-1000", ifelse(Total.sum > 100, "100-500", ifelse(Total.sum > 50, "50-100", ifelse(Total.sum > 10, "10-50", "1-10"))))))  %>%
+  add_row(Lat = NA, Long = NA, Month = 4, Total.sum = NA, TotalCat = "10-50") %>%
+  add_row(Lat = NA, Long = NA, Month = 4, Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Month = 4, Total.sum = NA, TotalCat = "100-500") %>%
+  add_row(Lat = NA, Long = NA, Month = 4, Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Month = 4, Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Month = 5, Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Month = 5, Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Month = 5, Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Month = 6, Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Month = 6, Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Month = 6, Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Month = 7, Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "500-1000") %>%
+  mutate(TotalCat = factor(TotalCat, levels = c("1-10", "10-50", "50-100", "100-500", "500-1000", "1000+"))) %>%
+  arrange(Total.sum)
 
 #combine plots (May+June, July, August, September)
-
-e <- ggplot() +
+April_map <- ggplot() +
   coord_map() +
   xlab("") + 
   ylab("") +
-  ggtitle("May/June")+
+  ggtitle("April") +
   coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_manual(values = cols)+
-  geom_point(data = top4 %>% filter(Month < 7), aes(y = Lat, x = Long, colour = TotalCat))+
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 12), legend.position = "none", axis.text.y = element_text(size = 12))
-
-f <- ggplot() +
-  coord_fixed() +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_data %>% filter(Month < 5), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+April_map  
+  
+May_map <- ggplot() +
+  coord_map() +
   xlab("") + 
   ylab("") +
-  ggtitle("July")+
+  ggtitle("May") +
   coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_manual(values = cols)+
-  geom_point(data = top4 %>% filter(Month == 7), aes(y = Lat, x = Long, colour = TotalCat))+
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "none", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12))
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_data %>% filter(Month == 5), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+May_map
 
-g <- ggplot() +
-  coord_fixed() +
+June_map <- ggplot() +
+  coord_map() +
   xlab("") + 
   ylab("") +
-  ggtitle("August")+
+  ggtitle("June") +
   coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_manual(values = cols)+
-  geom_point(data = top4 %>% filter(Month == 8), aes(y = Lat, x = Long, colour = TotalCat))+
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "none", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12))
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_data %>% filter(Month == 6), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+June_map
 
-h <- ggplot() +
-  coord_fixed() +
+July_map <- ggplot() +
+  coord_map() +
   xlab("") + 
   ylab("") +
-  ggtitle("September")+
+  ggtitle("July") +
   coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_manual(values = cols)+
-  geom_point(data = top4 %>% filter(Month == 9), aes(y = Lat, x = Long, colour = TotalCat))+
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "none", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12))
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_data %>% filter(Month == 7), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+July_map
 
-jpeg(filename = "figures/Monthly_map.jpeg", width = 18, height = 20, units = "cm", res = 300)
-e+f+g+h
+Aug_map <- ggplot() +
+  coord_map() +
+  xlab("") + 
+  ylab("") +
+  ggtitle("August") +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
+  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_data %>% filter(Month == 8), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+Aug_map
+
+Sept_map <- ggplot() +
+  coord_map() +
+  xlab("") + 
+  ylab("") +
+  ggtitle("September") +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
+  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_data %>% filter(Month == 9), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+Sept_map
+
+jpeg(filename = "figures/Monthly_map.jpeg", width = 16, height = 20, units = "cm", res = 300)
+(April_map + May_map) / (June_map + July_map) / (Aug_map + Sept_map) + plot_layout(guides = "collect")
 dev.off()
 ```
 
-#GIF Maps
-```{r Daily Maps}
-#make a map for each day
-id_arr <- unique(hpai$Date)
+```{r COMU Monthly Maps}
+monthly_map_COMU <- summaryBy(Total ~ Lat + Long + Month, data = hpai %>% filter(Top4 == "COMU"), FUN = sum) %>%
+  mutate(TotalCat = ifelse(Total.sum > 1000, "1000+", ifelse(Total.sum > 500, "500-1000", ifelse(Total.sum > 100, "100-500", ifelse(Total.sum > 50, "50-100", ifelse(Total.sum > 10, "10-50", "1-10"))))))  %>%
+  add_row(Lat = NA, Long = NA, Month = 4, Total.sum = NA, TotalCat = "10-50") %>%
+  add_row(Lat = NA, Long = NA, Month = 4, Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Month = 4, Total.sum = NA, TotalCat = "100-500") %>%
+  add_row(Lat = NA, Long = NA, Month = 4, Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Month = 4, Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Month = 7, Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Month = 7, Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Month = 8, Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Month = 8, Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "100-500") %>%
+  add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "1000+") %>%
+  mutate(TotalCat = factor(TotalCat, levels = c("1-10", "10-50", "50-100", "100-500", "500-1000", "1000+"))) %>%
+  arrange(Total.sum)
 
-sub_id = subset(hpai, Date == "2022-07-12")
-sub_title = sub_id[1,]$Date
-  
-ggplot() +
+#combine plots (May+June, July, August, September)
+COMU_April <- ggplot() +
   coord_map() +
   xlab("") + 
   ylab("") +
-  ggtitle(sub_title) +
+  ggtitle("April") +
   coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "A", discrete = TRUE)+
-  geom_point(data = sub_id, aes(y = Lat, x = Long, colour = TotalCat))+
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "right", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12))
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_COMU %>% filter(Month == 4), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+COMU_April
 
-
-for(i in id_arr) {
-  sub_id = subset(hpai, Date == i)
-  
-  sub_title = sub_id[1,]$Date
-  
-  jpeg(paste("figures/DailyMaps/", i, ".jpg", sep=""), height = 10, width = 13, units = "cm", res = 300)
-  
-  print(ggplot() +
+COMU_July <- ggplot() +
   coord_map() +
   xlab("") + 
   ylab("") +
-  ggtitle(sub_title) +
+  ggtitle("July") +
   coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "A", discrete = TRUE)+
-  geom_point(data = sub_id, aes(y = Lat, x = Long, colour = TotalCat))+
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "none", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12)))
-  
-  dev.off()
-  
-}
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_COMU %>% filter(Month == 7), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+COMU_July
 
-#Create the gif
-imgs <- list.files(path = "figures/DailyMaps/", full.names = TRUE)
-img_list <- lapply(imgs, image_read)
-img_joined <- image_join(img_list)
-img_animated <- image_animate(img_joined, fps = 4)
+COMU_August <- ggplot() +
+  coord_map() +
+  xlab("") + 
+  ylab("") +
+  ggtitle("August") +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
+  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_COMU %>% filter(Month == 8), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+COMU_August
 
-image_write(image = img_animated, path = "figures/Maps.gif")
+COMU_Sept <- ggplot() +
+  coord_map() +
+  xlab("") + 
+  ylab("") +
+  ggtitle("September") +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
+  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_COMU %>% filter(Month == 9), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+COMU_Sept
+
+jpeg(filename = "figures/COMU_Monthly_map.jpeg", width = 16, height = 15, units = "cm", res = 300)
+COMU_April + COMU_July + COMU_August + COMU_Sept + plot_layout(guides = "collect")
+dev.off()
 ```
 
-```{r Cumulative Daily Maps}
-gif_data <- summaryBy(Total ~ Date + Lat + Long, data = hpai, FUN = sum) %>%
-  mutate(TotalCat = ifelse(Total.sum > 50, "> 50", ifelse(Total.sum < 10, "< 10", "10 to 50")))
+```{r NOGA Monthly Maps}
+monthly_map_NOGA <- summaryBy(Total ~ Lat + Long + Month, data = hpai %>% filter(Top4 == "NOGA"), FUN = sum) %>%
+  mutate(TotalCat = ifelse(Total.sum > 1000, "1000+", ifelse(Total.sum > 500, "500-1000", ifelse(Total.sum > 100, "100-500", ifelse(Total.sum > 50, "50-100", ifelse(Total.sum > 10, "10-50", "1-10"))))))  %>%
+  add_row(Lat = NA, Long = NA, Month = 5, Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Month = 5, Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Month = 5, Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Month = 6, Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Month = 6, Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Month = 6, Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Month = 7, Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Month = 7, Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Month = 8, Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Month = 8, Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "100-500") %>%
+  mutate(TotalCat = factor(TotalCat, levels = c("1-10", "10-50", "50-100", "100-500", "500-1000", "1000+"))) %>%
+  arrange(Total.sum)
 
-#make a map for each day
-id_arr2 <- unique(gif_data$Date)
+#combine plots (May+June, July, August, September)
 
-sub_id2 = subset(gif_data, Date <= "2022-07-12")
-sub_title2 = sub_id2[nrow(sub_id2),]$Date
-  
-ggplot() +
+NOGA_May <- ggplot() +
   coord_map() +
   xlab("") + 
   ylab("") +
-  ggtitle(sub_title2) +
+  ggtitle("May") +
   coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_manual(values = cols) +
-  geom_point(data = sub_id2, aes(y = Lat, x = Long, colour = TotalCat))+
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "right", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12))
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_NOGA %>% filter(Month == 5), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+NOGA_May
 
-for(i in id_arr2) {
-  sub_id2 = subset(gif_data, Date <= i)
-  
-  sub_title2 = sub_id2[nrow(sub_id2),]$Date
-  
-  jpeg(paste("figures/CumulativeDailyMaps/", i, ".jpg", sep=""), height = 10, width = 13, units = "cm", res = 300)
-  
-  print(ggplot() +
+NOGA_June <- ggplot() +
   coord_map() +
   xlab("") + 
   ylab("") +
-  ggtitle(sub_title2) +
+  ggtitle("June") +
   coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_manual(values = cols) +
-  geom_point(data = sub_id2, aes(y = Lat, x = Long, colour = TotalCat, size = TotalCat))+
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "none", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12)))
-  
-  dev.off()
-  
-}
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_NOGA %>% filter(Month == 6), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+NOGA_June
 
-#Create the gif
-imgs2 <- list.files(path = "figures/CumulativeDailyMaps/", full.names = TRUE)
-img_list2 <- lapply(imgs2, image_read)
-img_joined2 <- image_join(img_list2)
-img_animated2 <- image_animate(img_joined2, fps = 4)
+NOGA_July <- ggplot() +
+  coord_map() +
+  xlab("") + 
+  ylab("") +
+  ggtitle("July") +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
+  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_NOGA %>% filter(Month == 7), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+NOGA_July
 
-image_write(image = img_animated2, path = "figures/CumulativeMaps.gif")
+NOGA_August <- ggplot() +
+  coord_map() +
+  xlab("") + 
+  ylab("") +
+  ggtitle("August") +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
+  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_NOGA %>% filter(Month == 8), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+NOGA_August
+
+NOGA_Sept <- ggplot() +
+  coord_map() +
+  xlab("") + 
+  ylab("") +
+  ggtitle("September") +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
+  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_NOGA %>% filter(Month == 9), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+NOGA_Sept
+
+jpeg(filename = "figures/NOGA_Monthly_map.jpeg", width = 16, height = 20, units = "cm", res = 300)
+NOGA_May + NOGA_June + NOGA_July + NOGA_August + NOGA_Sept + plot_spacer() + plot_layout(guides = "collect", nrow = 3)
+dev.off()
+```
+
+```{r ATPU Monthly Maps}
+monthly_map_ATPU <- summaryBy(Total ~ Lat + Long + Month, data = hpai %>% filter(Top4 == "ATPU"), FUN = sum) %>%
+  mutate(TotalCat = ifelse(Total.sum > 1000, "1000+", ifelse(Total.sum > 500, "500-1000", ifelse(Total.sum > 100, "100-500", ifelse(Total.sum > 50, "50-100", ifelse(Total.sum > 10, "10-50", "1-10"))))))  %>%
+  add_row(Lat = NA, Long = NA, Month = 7, Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Month = 7, Total.sum = NA, TotalCat = "100-500") %>%
+  add_row(Lat = NA, Long = NA, Month = 7, Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Month = 7, Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Month = 8, Total.sum = NA, TotalCat = "100-500") %>%
+  add_row(Lat = NA, Long = NA, Month = 8, Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Month = 8, Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "100-500") %>%
+  add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "1000+") %>%
+  mutate(TotalCat = factor(TotalCat, levels = c("1-10", "10-50", "50-100", "100-500", "500-1000", "1000+"))) %>%
+  arrange(Total.sum)
+
+#combine plots (May+June, July, August, September)
+
+ATPU_July <- ggplot() +
+  coord_map() +
+  xlab("") + 
+  ylab("") +
+  ggtitle("July") +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
+  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_ATPU %>% filter(Month == 7), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+ATPU_July
+
+ATPU_August <- ggplot() +
+  coord_map() +
+  xlab("") + 
+  ylab("") +
+  ggtitle("August") +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
+  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_ATPU %>% filter(Month == 8), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+ATPU_August
+
+ATPU_Sept <- ggplot() +
+  coord_map() +
+  xlab("") + 
+  ylab("") +
+  ggtitle("September") +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
+  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_ATPU %>% filter(Month == 9), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+ATPU_Sept
+
+jpeg(filename = "figures/ATPU_Monthly_map.jpeg", width = 16, height = 15, units = "cm", res = 300)
+ATPU_July + ATPU_August + ATPU_Sept + plot_spacer() + plot_layout(guides = "collect")
+ dev.off()
+```
+
+```{r BLKI Monthly Maps}
+monthly_map_BLKI <- summaryBy(Total ~ Lat + Long + Month, data = hpai %>% filter(Top4 == "BLKI"), FUN = sum) %>%
+  mutate(TotalCat = ifelse(Total.sum > 1000, "1000+", ifelse(Total.sum > 500, "500-1000", ifelse(Total.sum > 100, "100-500", ifelse(Total.sum > 50, "50-100", ifelse(Total.sum > 10, "10-50", "1-10"))))))  %>%
+  add_row(Lat = NA, Long = NA, Month = 7, Total.sum = NA, TotalCat = "100-500") %>%
+  add_row(Lat = NA, Long = NA, Month = 7, Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Month = 7, Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Month = 8, Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Month = 8, Total.sum = NA, TotalCat = "100-500") %>%
+  add_row(Lat = NA, Long = NA, Month = 8, Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Month = 8, Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "10-50") %>%
+  add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "100-500") %>%
+  add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "500-1000") %>%
+  add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "1000+") %>%
+  mutate(TotalCat = factor(TotalCat, levels = c("1-10", "10-50", "50-100", "100-500", "500-1000", "1000+"))) %>%
+  arrange(Total.sum)
+
+#combine plots (May+June, July, August, September)
+
+BLKI_July <- ggplot() +
+  coord_map() +
+  xlab("") + 
+  ylab("") +
+  ggtitle("July") +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
+  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_BLKI %>% filter(Month == 7), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+BLKI_July
+
+BLKI_August <- ggplot() +
+  coord_map() +
+  xlab("") + 
+  ylab("") +
+  ggtitle("August") +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
+  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_BLKI %>% filter(Month == 8), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+BLKI_August
+
+BLKI_Sept <- ggplot() +
+  coord_map() +
+  xlab("") + 
+  ylab("") +
+  ggtitle("September") +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
+  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = monthly_map_BLKI %>% filter(Month == 9), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+BLKI_Sept
+
+jpeg(filename = "figures/BLKI_Monthly_map.jpeg", width = 16, height = 15, units = "cm", res = 300)
+BLKI_July + BLKI_August + BLKI_Sept + plot_spacer() + plot_layout(guides = "collect")
+dev.off()
 ```
 
 #Peak Mortality
-``` {r Time series plot}
-freqplot_all <- summaryBy(Total ~ Date, data = hpai, FUN = c(sum))
+```{r Time Series Plot}
+freqplot_all <- summaryBy(Total ~ Date, data = hpai %>% filter(Total < 1000), FUN = c(sum))
 
+#Create the 
 jpeg(filename = "figures/scatterplot.jpeg", width = 15, height = 10, units = "cm", res = 300)
 ggplot(data = freqplot_all, aes(y = Total.sum, x = Date)) +
-  geom_segment(aes(x = as.Date("2022-07-15"), y = 100, xend = as.Date("2022-08-19"), yend = 100), colour = 'lightgrey', size = 1000) +
   geom_point() +
   geom_smooth(se = F, linewidth = 0.5)+
-  scale_y_continuous(limits = c(0, 3100)) +
-  ylab("Observed Mortalities")+
+  ylab("Total Daily Reported Mortalities")+
   xlab("Month")+
  theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text(size = 12), axis.text.x = element_text(vjust = 0.5, size = 12, colour = "black"), axis.text.y = element_text(size = 12, colour = "black"))
+dev.off()
+```
+
+``` {r Species-specific Time series plot}
+#create object with the total observed mortalities per day
+freqplot_species <- summaryBy(Total ~ Date + Top4, data = hpai %>% filter(Total < 1000), FUN = c(sum))
+
+NOGA_timeseries <- ggplot(data = freqplot_species %>% filter(Top4 == "NOGA"), aes(y = Total.sum, x = Date)) +
+  ggtitle("Northern Gannet") +
+  geom_point() +
+  geom_smooth(se = F, linewidth = 0.5)+
+  ylab("Mortalities") +
+  xlab("Month") +
+  ylim(0, 650) +
+  xlim(as.Date("2022-04-01"), as.Date("2022-09-30")) +
+ theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text(size = 12), axis.text.x = element_text(vjust = 0.5, size = 10, colour = "black"), axis.text.y = element_text(size = 10, colour = "black"))
+
+COMU_timeseries <- ggplot(data = freqplot_species %>% filter(Top4 == "COMU"), aes(y = Total.sum, x = Date)) +
+  ggtitle("Common Murre") +
+  geom_point() +
+  geom_smooth(se = F, linewidth = 0.5)+
+  ylab("Mortalities")+
+  xlab("Month")+
+  ylim(0, 650) +
+  xlim(as.Date("2022-04-01"), as.Date("2022-09-30")) +
+ theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text(size = 12), axis.text.x = element_text(vjust = 0.5, size = 10, colour = "black"), axis.text.y = element_text(size = 10, colour = "black"))
+
+BLKI_timeseries <- ggplot(data = freqplot_species %>% filter(Top4 == "BLKI"), aes(y = Total.sum, x = Date)) +
+  ggtitle("Black-legged Kittiwake") +
+  geom_point() +
+  geom_smooth(se = F, linewidth = 0.5)+
+  ylab("Mortalities")+
+  xlab("Month")+
+  ylim(0, 110) +
+  xlim(as.Date("2022-04-01"), as.Date("2022-09-30")) +
+ theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text(size = 12), axis.text.x = element_text(vjust = 0.5, size = 10, colour = "black"), axis.text.y = element_text(size = 10, colour = "black"))
+
+ATPU_timeseries <- ggplot(data = freqplot_species %>% filter(Top4 == "ATPU"), aes(y = Total.sum, x = Date)) +
+  ggtitle("Atlantic Puffin") +
+  geom_point() +
+  geom_smooth(se = F, linewidth = 0.5)+
+  ylab("Mortalities")+
+  xlab("Month")+
+  ylim(0, 110) +
+  xlim(as.Date("2022-04-01"), as.Date("2022-09-30")) +
+ theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text(size = 12), axis.text.x = element_text(vjust = 0.5, size = 10, colour = "black"), axis.text.y = element_text(size = 10, colour = "black"))
+
+#Create the 
+jpeg(filename = "figures/Species_timeseries.jpeg", width = 15, height = 10, units = "cm", res = 300)
+NOGA_timeseries + COMU_timeseries + ATPU_timeseries + BLKI_timeseries
 dev.off()
 ```
 

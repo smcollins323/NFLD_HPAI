@@ -1,0 +1,91 @@
+---
+title: "HPAI_gif"
+author: "Sydney Collins"
+date: "2023-10-25"
+output: html_document
+---
+
+```{r Load Packages}
+rm(list=ls())
+library(tidyverse)
+library(doBy)
+library(lubridate)
+library(rgdal)
+library(rasterVis)
+library(viridis)
+library(whitebox)
+library(maps)
+library(mapproj)
+library(patchwork)
+library(magick)
+library(scales)
+library(RColorBrewer)
+library(legendMap)
+
+load("data/hpai.Rda")
+load("data/Canada.Rda")
+```
+
+```{r Cumulative Daily Maps}
+#Make dataset with each day
+dates <- as.data.frame(rep(seq(as.POSIXct("2022-04-01"), by = "day", length.out = 183), 6)) %>%
+  rename(Date = `rep(seq(as.POSIXct("2022-04-01"), by = "day", length.out = 183), 6)`) %>%
+  mutate(Lat = NA, Long = NA, Total.sum = NA) %>%
+  mutate(TotalCat = rep(1:6, each = 183)) %>%
+  mutate(TotalCat = ifelse(TotalCat == 6, "1000+", ifelse(TotalCat == 5, "500-1000", ifelse(TotalCat == 4, "100-500", ifelse(TotalCat == 3, "50-100", ifelse(TotalCat == 2, "10-50", "1-10"))))))
+
+gif_data <- summaryBy(Total ~ Date + Lat + Long, data = hpai, FUN = sum) %>%
+  mutate(TotalCat = ifelse(Total.sum > 1000, "1000+", ifelse(Total.sum > 500, "500-1000", ifelse(Total.sum > 100, "100-500", ifelse(Total.sum > 50, "50-100", ifelse(Total.sum > 10, "10-50", "1-10")))))) %>%
+  bind_rows(dates) %>%
+  mutate(TotalCat = factor(TotalCat, levels = c("1-10", "10-50", "50-100", "100-500", "500-1000", "1000+"))) %>%
+  arrange(Date, Total.sum)
+
+#make a map for each day
+id_arr2 <- unique(gif_data$Date)
+
+sub_id2 = subset(gif_data, Date <= "2022-04-03")
+sub_title2 = sub_id2[nrow(sub_id2),]$Date
+  
+ggplot() +
+  coord_map() +
+  xlab("Long") + 
+  ylab("Lat") +
+  ggtitle(sub_title2) +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
+  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = sub_id2, aes(y = Lat, x = Long, fill = TotalCat, size = TotalCat), pch = 21)+
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "right", axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+
+for(i in id_arr2) {
+  sub_id2 = subset(gif_data, Date <= i)
+  
+  sub_title2 = sub_id2[nrow(sub_id2),]$Date
+  
+  jpeg(paste("figures/CumulativeDailyMaps/", i, ".jpg", sep=""), height = 10, width = 13, units = "cm", res = 300)
+  
+  print(ggplot() +
+  coord_map() +
+  xlab("Long") + 
+  ylab("Lat") +
+  ggtitle(sub_title2) +
+  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
+  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
+  scale_fill_brewer(palette = "RdYlBu", direction = -1) +
+  geom_point(data = sub_id2, aes(y = Lat, x = Long, fill = TotalCat, size = TotalCat), pch = 21)+
+  labs(fill  = "Mortalities", size = "Mortalities") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), legend.position = "right", axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10)))
+  
+  dev.off()
+  
+}
+
+#Create the gif
+imgs2 <- list.files(path = "figures/CumulativeDailyMaps/", full.names = TRUE)
+img_list2 <- lapply(imgs2, image_read)
+img_joined2 <- image_join(img_list2)
+img_animated2 <- image_animate(img_joined2, fps = 4)
+
+image_write(image = img_animated2, path = "figures/CumulativeMaps.gif")
+```

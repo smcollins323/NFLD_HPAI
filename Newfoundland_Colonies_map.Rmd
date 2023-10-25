@@ -32,6 +32,7 @@ GBR <- as.data.frame(cbind(47.8, -61.0))
 MG <- as.data.frame(cbind(47.448333, -61.752222))
 LAWN <- as.data.frame(cbind(46.869038, -55.617111))
 HARE <- as.data.frame(cbind(51.257219, -55.955525))
+WB <- as.data.frame(cbind(47.268642, -52.787973))
 
 main_map <- ggplot() +
   xlab("Longitude") + 
@@ -39,13 +40,15 @@ main_map <- ggplot() +
   coord_map(xlim = c(-66, -48), ylim = c(43, 54.5))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
   geom_point(data = MG, aes(y = V1, x = V2), size = 3) +
-  geom_point(data = CSM, aes(y = V1, x = V2), size = 3)+
-  geom_point(data = BC, aes(y = V1, x = V2), size = 3)+
-  geom_point(data = Funk, aes(y = V1, x = V2), size = 3)+
-  geom_point(data = LAWN, aes(y = V1, x = V2), size = 3)+
-  geom_point(data = HARE, aes(y = V1, x = V2), size = 3)+
-  annotate("text", cex = 2.5, x = c(-61.1, -53, -56, -62.8, -57.5, -64, -51.4, -52.1, -55.5, -54.9), y = c(47.8, 46.5, 48.5, 45.2, 52.5, 51.5, 48.3, 49.9, 46.7, 51.3), label= c("Îles-de-la-Madeleine", "Cape St. Mary's", "Newfoundland", "Nova Scotia", "Labrador", "Québec", "Baccalieu Island","Funk Island", "Lawn Islands", "Hare Bay")) +
-  theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.text.x = element_text(size = 16), axis.text.y = element_text(size = 16))
+  geom_point(data = CSM, aes(y = V1, x = V2), size = 3) +
+  geom_point(data = BC, aes(y = V1, x = V2), size = 3) +
+  geom_point(data = Funk, aes(y = V1, x = V2), size = 3) +
+  geom_point(data = LAWN, aes(y = V1, x = V2), size = 3) +
+  geom_point(data = HARE, aes(y = V1, x = V2), size = 3) +
+  geom_point(data = WB, aes(y = V1, x = V2), size = 3) +
+  annotate("text", cex = 2.5, x = c(-61.1, -53, -56, -62.8, -57.5, -64, -51.4, -52.1, -55.5, -54.9, -51.7), y = c(47.8, 46.5, 48.5, 45.2, 52.5, 51.5, 48.3, 49.9, 46.7, 51.3, 47.3), label= c("Îles-de-la-Madeleine", "Cape St. Mary's", "Newfoundland", "Nova Scotia", "Labrador", "Québec", "Baccalieu Island","Funk Island", "Lawn Islands", "Hare Bay", "Witless Bay")) +
+  theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.text.x = element_text(size = 16), axis.text.y = element_text(size = 16)) +
+  scale_bar(lon = -53.5, lat = 43, distance_lon = 200, distance_lat = 50, distance_legend = 100, dist_unit = "km", orientation = F)
 main_map
 
 world_map <- map_data("world")

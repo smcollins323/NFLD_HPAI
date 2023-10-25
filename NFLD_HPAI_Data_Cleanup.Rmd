@@ -20,27 +20,20 @@ hpai <- read.csv("data/2023-06-22_HPAI_Mortality_Tracker - Newfoundland.csv", na
   select(UniqueID, SiteName, Year, Month, Day, DateObserved, Lat, Long, SpeciesAlphaCode, GroupAs, Individual_HPAIVstatus, AgeClass, LandWater, Colony_Y_N,  IFcolony_complete_partial_survey, TotalObserved) %>%
   dplyr::rename(Species = SpeciesAlphaCode, Date = DateObserved, Total = TotalObserved) %>%
   mutate(Date = as.Date(Date)) %>%
-  mutate(TotalCat = ifelse(Total > 50, "> 50", ifelse(Total < 10, "< 10", "10 to 50"))) %>%
+  mutate(TotalCat = ifelse(Total > 1000, "1000+", ifelse(Total > 500, "500-1000", ifelse(Total > 100, "100-500", ifelse(Total > 50, "50-100", ifelse(Total > 10, "10-50", "1-10")))))) %>%
   filter(GroupAs %>% str_detect("seabirds")) %>%
   filter(Individual_HPAIVstatus == "positive" | is.na(Individual_HPAIVstatus)) %>%
   select(-GroupAs) %>%
-  arrange(Date)
+  arrange(Date) %>%
+  mutate(Lat = round(Lat, 1)) %>%
+  mutate(Long = round(Long, 1))
 
-hpai$TotalCat <- factor(hpai$TotalCat, levels=c('< 10', '10 to 50', '> 50'))
-
-ggplot(data = hpai, aes(x = Species)) +
-  geom_bar() +
-  theme_classic()
-
-#make a new dataset with cleaned up species categories
-top4 <- hpai
-
-#first change all 'unknown' species to other
+#Change all 'unknown' species to other
 top4species <- c("COMU", "NOGA", "ATPU", "BLKI")
-top4$Species <- sapply(strsplit(top4$Species, ',,\\s*'), function(x) {  x[!x %in% top4species ] <- 'Other'
+hpai$Top4 <- sapply(strsplit(hpai$Species, ',,\\s*'), function(x) {  x[!x %in% top4species ] <- 'Other'
   toString(x)})
 
-summary(as.factor(top4$Species))
+summary(as.factor(hpai$Species))
 
 #Make Newfoundland polygon
 world_map <- map_data("world")
@@ -49,6 +42,5 @@ Canada <- subset(world_map, world_map$region == "Canada")
 
 #save the data files
 save(hpai, file = "data/hpai.Rda")
-save(top4, file = "data/top4.Rda")
 save(Canada, file = "data/Canada.Rda")
 ```

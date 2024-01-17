@@ -16,14 +16,14 @@ library(lubridate)
 
 ```{r download and organize data}
 #create dataset of just seabirds
-hpai <- read.csv("data/2023-06-22_HPAI_Mortality_Tracker - Newfoundland.csv", na = "NA") %>%
-  select(UniqueID, SiteName, Year, Month, Day, DateObserved, Lat, Long, SpeciesAlphaCode, GroupAs, Individual_HPAIVstatus, AgeClass, LandWater, Colony_Y_N,  IFcolony_complete_partial_survey, TotalObserved) %>%
+hpai <- read.csv("data/Data S1. Reported mortalities and morbidities in eastern Canada 2022.csv", na = "NA") %>%
+  filter(Prov_2 == "Newfoundland") %>%
+  filter(GroupAs == "seabirds") %>%
+  filter(Scenario_B_1day_1km == "retain") %>%
+  select(UniqueID, SiteName, Year, Month, Day, DateObserved, Lat, Long, SpeciesAlphaCode, AgeClass, LandWater, Colony_Y_N,  TotalObserved) %>%
   dplyr::rename(Species = SpeciesAlphaCode, Date = DateObserved, Total = TotalObserved) %>%
   mutate(Date = as.Date(Date)) %>%
   mutate(TotalCat = ifelse(Total > 1000, "1000+", ifelse(Total > 500, "500-1000", ifelse(Total > 100, "100-500", ifelse(Total > 50, "50-100", ifelse(Total > 10, "10-50", "1-10")))))) %>%
-  filter(GroupAs %>% str_detect("seabirds")) %>%
-  filter(Individual_HPAIVstatus == "positive" | is.na(Individual_HPAIVstatus)) %>%
-  select(-GroupAs) %>%
   arrange(Date) %>%
   mutate(Lat = round(Lat, 1)) %>%
   mutate(Long = round(Long, 1))
@@ -34,6 +34,7 @@ hpai$Top4 <- sapply(strsplit(hpai$Species, ',,\\s*'), function(x) {  x[!x %in% t
   toString(x)})
 
 summary(as.factor(hpai$Species))
+summary(as.factor(hpai$Top4))
 
 #Make Newfoundland polygon
 world_map <- map_data("world")

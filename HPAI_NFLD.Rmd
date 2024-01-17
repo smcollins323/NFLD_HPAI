@@ -43,12 +43,14 @@ summaryBy(Total ~ Month, data = hpai, FUN = "sum")
 all_species <- as.data.frame(summaryBy(Total ~ Species, FUN = sum, data = hpai))
     #Why is there a separate group for terns, kits, and gulls?
 
+jpeg(filename = "figures/SpeciesBarGraph.jpeg", width = 15, height = 12, units = "cm", res = 300)
 ggplot(data = all_species, aes(x = reorder(Species, Total.sum, function(x)-sum(x)), y = Total.sum)) +
   ylab("Total Mortalities (log scale)") +
   xlab("Species") +
   geom_bar(stat = "identity") +
   scale_y_continuous(trans='log10') +
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), axis.text.x = element_text(angle = 45, hjust=1))
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), axis.text.x = element_text(angle = 45, hjust=1, size = 10), axis.text.y = element_text(size = 10), axis.title = element_text(size = 12, colour = "black"))
+dev.off()
 ```
 
 #Static Maps
@@ -110,8 +112,7 @@ COMU_map <- ggplot() +
   scale_fill_brewer(palette = "RdYlBu", direction = -1) +
   geom_point(data = species_map_data %>% filter(Top4 == "COMU"), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
   labs(fill  = "Mortalities", size = "Mortalities") +
-  theme(panel.background = element_rect(fill = 'white', colour = 'black')) +
-  scale_bar(lon = -55, lat = 41.5, distance_lon = 200, distance_lat = 50, distance_legend = 100, dist_unit = "km", orientation = T, arrow_length = 80, arrow_distance = 1100)
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'))
 COMU_map
 
 ATPU_map <- ggplot() +
@@ -124,7 +125,8 @@ ATPU_map <- ggplot() +
   geom_point(data = species_map_data %>% filter(Top4 == "ATPU"), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
   labs(fill  = "Mortalities", size = "Mortalities") +
   theme(panel.background = element_rect(fill = 'white', colour = 'black')) +
-  scale_bar(lon = -59.5, lat = 45.9, distance_lon = 150, distance_lat = 30, distance_legend = 60, dist_unit = "km", orientation = F)
+  scale_bar(lon = -59.5, lat = 45.9, distance_lon = 150, distance_lat = 30, distance_legend = 60, dist_unit = "km", orientation = F) +
+  scale_bar(lon = -55, lat = 41.5, distance_lon = 200, distance_lat = 50, distance_legend = 100, dist_unit = "km", orientation = T, arrow_length = 80, arrow_distance = 1100)
 ATPU_map
 
 BLKI_map <- ggplot() +
@@ -152,14 +154,20 @@ monthly_map_data <- summaryBy(Total ~ Lat + Long + Month, data = hpai, FUN = sum
   add_row(Lat = NA, Long = NA, Month = 4, Total.sum = NA, TotalCat = "100-500") %>%
   add_row(Lat = NA, Long = NA, Month = 4, Total.sum = NA, TotalCat = "500-1000") %>%
   add_row(Lat = NA, Long = NA, Month = 4, Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Month = 5, Total.sum = NA, TotalCat = "10-50") %>%
   add_row(Lat = NA, Long = NA, Month = 5, Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Month = 5, Total.sum = NA, TotalCat = "100-500") %>%
   add_row(Lat = NA, Long = NA, Month = 5, Total.sum = NA, TotalCat = "500-1000") %>%
   add_row(Lat = NA, Long = NA, Month = 5, Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Month = 6, Total.sum = NA, TotalCat = "10-50") %>%
   add_row(Lat = NA, Long = NA, Month = 6, Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Month = 6, Total.sum = NA, TotalCat = "100-500") %>%
   add_row(Lat = NA, Long = NA, Month = 6, Total.sum = NA, TotalCat = "500-1000") %>%
   add_row(Lat = NA, Long = NA, Month = 6, Total.sum = NA, TotalCat = "1000+") %>%
   add_row(Lat = NA, Long = NA, Month = 7, Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Month = 8, Total.sum = NA, TotalCat = "1000+") %>%
   add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "100-500") %>%
   add_row(Lat = NA, Long = NA, Month = 9, Total.sum = NA, TotalCat = "500-1000") %>%
   mutate(TotalCat = factor(TotalCat, levels = c("1-10", "10-50", "50-100", "100-500", "500-1000", "1000+"))) %>%
   arrange(Total.sum)
@@ -227,7 +235,9 @@ Aug_map <- ggplot() +
   scale_fill_brewer(palette = "RdYlBu", direction = -1) +
   geom_point(data = monthly_map_data %>% filter(Month == 8), aes(y = Lat, x = Long, fill = TotalCat), pch = 21, size = 2) +
   labs(fill  = "Mortalities", size = "Mortalities") +
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10))
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 10, face = "bold"), axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 10)) +
+  scale_bar(lon = -59.5, lat = 45.9, distance_lon = 200, distance_lat = 30, distance_legend = 60, dist_unit = "km", orientation = F) +
+  scale_bar(lon = -55, lat = 41.5, distance_lon = 200, distance_lat = 50, distance_legend = 100, dist_unit = "km", orientation = T, arrow_length = 80, arrow_distance = 1100)
 Aug_map
 
 Sept_map <- ggplot() +
@@ -328,10 +338,14 @@ dev.off()
 ```{r NOGA Monthly Maps}
 monthly_map_NOGA <- summaryBy(Total ~ Lat + Long + Month, data = hpai %>% filter(Top4 == "NOGA"), FUN = sum) %>%
   mutate(TotalCat = ifelse(Total.sum > 1000, "1000+", ifelse(Total.sum > 500, "500-1000", ifelse(Total.sum > 100, "100-500", ifelse(Total.sum > 50, "50-100", ifelse(Total.sum > 10, "10-50", "1-10"))))))  %>%
+  add_row(Lat = NA, Long = NA, Month = 5, Total.sum = NA, TotalCat = "10-50") %>%
   add_row(Lat = NA, Long = NA, Month = 5, Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Month = 5, Total.sum = NA, TotalCat = "100-500") %>%
   add_row(Lat = NA, Long = NA, Month = 5, Total.sum = NA, TotalCat = "500-1000") %>%
   add_row(Lat = NA, Long = NA, Month = 5, Total.sum = NA, TotalCat = "1000+") %>%
+  add_row(Lat = NA, Long = NA, Month = 6, Total.sum = NA, TotalCat = "10-50") %>%
   add_row(Lat = NA, Long = NA, Month = 6, Total.sum = NA, TotalCat = "50-100") %>%
+  add_row(Lat = NA, Long = NA, Month = 6, Total.sum = NA, TotalCat = "100-500") %>%
   add_row(Lat = NA, Long = NA, Month = 6, Total.sum = NA, TotalCat = "1000+") %>%
   add_row(Lat = NA, Long = NA, Month = 6, Total.sum = NA, TotalCat = "500-1000") %>%
   add_row(Lat = NA, Long = NA, Month = 7, Total.sum = NA, TotalCat = "50-100") %>%
@@ -570,7 +584,8 @@ NOGA_timeseries <- ggplot(data = freqplot_species %>% filter(Top4 == "NOGA"), ae
   xlab("Month") +
   ylim(0, 650) +
   xlim(as.Date("2022-04-01"), as.Date("2022-09-30")) +
- theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text(size = 12), axis.text.x = element_text(vjust = 0.5, size = 10, colour = "black"), axis.text.y = element_text(size = 10, colour = "black"))
+ theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text(size = 12), axis.text.x = element_text(vjust = 0.5, size = 10), axis.text.y = element_text(size = 10))
+NOGA_timeseries
 
 COMU_timeseries <- ggplot(data = freqplot_species %>% filter(Top4 == "COMU"), aes(y = Total.sum, x = Date)) +
   ggtitle("Common Murre") +
@@ -580,7 +595,9 @@ COMU_timeseries <- ggplot(data = freqplot_species %>% filter(Top4 == "COMU"), ae
   xlab("Month")+
   ylim(0, 650) +
   xlim(as.Date("2022-04-01"), as.Date("2022-09-30")) +
- theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text(size = 12), axis.text.x = element_text(vjust = 0.5, size = 10, colour = "black"), axis.text.y = element_text(size = 10, colour = "black"))
+ theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text(size = 12), axis.text.x = element_text(vjust = 0.5, size = 10), axis.text.y = element_text(size = 10))
+
+NOGA_timeseries / COMU_timeseries
 
 BLKI_timeseries <- ggplot(data = freqplot_species %>% filter(Top4 == "BLKI"), aes(y = Total.sum, x = Date)) +
   ggtitle("Black-legged Kittiwake") +
@@ -590,7 +607,7 @@ BLKI_timeseries <- ggplot(data = freqplot_species %>% filter(Top4 == "BLKI"), ae
   xlab("Month")+
   ylim(0, 110) +
   xlim(as.Date("2022-04-01"), as.Date("2022-09-30")) +
- theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text(size = 12), axis.text.x = element_text(vjust = 0.5, size = 10, colour = "black"), axis.text.y = element_text(size = 10, colour = "black"))
+ theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text(size = 12), axis.text.x = element_text(vjust = 0.5, size = 10), axis.text.y = element_text(size = 10))
 
 ATPU_timeseries <- ggplot(data = freqplot_species %>% filter(Top4 == "ATPU"), aes(y = Total.sum, x = Date)) +
   ggtitle("Atlantic Puffin") +
@@ -600,360 +617,49 @@ ATPU_timeseries <- ggplot(data = freqplot_species %>% filter(Top4 == "ATPU"), ae
   xlab("Month")+
   ylim(0, 110) +
   xlim(as.Date("2022-04-01"), as.Date("2022-09-30")) +
- theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text(size = 12), axis.text.x = element_text(vjust = 0.5, size = 10, colour = "black"), axis.text.y = element_text(size = 10, colour = "black"))
+ theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text(size = 12), axis.text.x = element_text(vjust = 0.5, size = 10), axis.text.y = element_text(size = 10))
 
-#Create the 
+#Create the figure
 jpeg(filename = "figures/Species_timeseries.jpeg", width = 15, height = 10, units = "cm", res = 300)
 NOGA_timeseries + COMU_timeseries + ATPU_timeseries + BLKI_timeseries
 dev.off()
 ```
 
-#Expansion Factors
-```{r Expansion Factors}
-sum(hpai %>% filter(Species == "COMU") %>% dplyr::select(Total)) * 10
-sum(hpai %>% filter(Species == "COMU") %>% dplyr::select(Total)) * 22
+```{r Timing by Latitude}
+freqplot_lat_N <- summaryBy(Total ~ Date, data = hpai %>% filter(Lat > 48.1 & Total < 1000), FUN = c(sum))
+freqplot_lat_S <- summaryBy(Total ~ Date, data = hpai %>% filter(Lat < 48.2 & Total < 1000), FUN = c(sum))
 
-sum(hpai %>% filter(Species == "NOGA") %>% dplyr::select(Total)) * 3
-sum(hpai %>% filter(Species == "COMU") %>% dplyr::select(Total)) * 7
-```
+S_timeseries <- ggplot(data = freqplot_lat_S, aes(y = Total.sum, x = Date)) +
+  ggtitle("Southern") +
+  geom_point() +
+  geom_smooth(se = F, linewidth = 0.5)+
+  geom_segment(aes(x = as.Date("2022-04-01"), y = 500, xend = as.Date("2022-08-15"), yend = 500), linetype = "dashed", linewidth = 0.75) +
+  geom_segment(aes(x = as.Date("2022-08-01"), y = 500, xend = as.Date("2022-08-15"), yend = 500), colour = "red", linewidth = 0.75) +
+  geom_segment(aes(x = as.Date("2022-04-01"), y = 550, xend = as.Date("2022-09-30"), yend = 550), linetype = "dashed", linewidth = 0.75) +
+  geom_segment(aes(x = as.Date("2022-09-01"), y = 550, xend = as.Date("2022-09-30"), yend = 550), colour = "red", linewidth = 0.75) +
+  annotate("text", cex = 2.5, y = c(517, 567), x = c(as.Date("2022-04-18"), as.Date("2022-04-07")), label= c("COMU, ATPU, BLKI", "NOGA")) +
+  ylab("Mortalities")+
+  xlab("Month")+
+  xlim(as.Date("2022-04-01"), as.Date("2022-09-30")) +
+ theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text(size = 12), axis.text.x = element_text(vjust = 0.5, size = 10), axis.text.y = element_text(size = 10))
+S_timeseries
 
+N_timeseries <- ggplot(data = freqplot_lat_N, aes(y = Total.sum, x = Date)) +
+  ggtitle("Northern") +
+  geom_point() +
+  geom_smooth(se = F, linewidth = 0.5)+
+  geom_segment(aes(x = as.Date("2022-04-01"), y = 400, xend = as.Date("2022-08-30"), yend = 400), linetype = "dashed", linewidth = 0.75) +
+  geom_segment(aes(x = as.Date("2022-08-15"), y = 400, xend = as.Date("2022-09-05"), yend = 400), colour  ="red", linewidth = 0.75) +
+  geom_segment(aes(x = as.Date("2022-04-01"), y = 450, xend = as.Date("2022-09-30"), yend = 450), linetype = "dashed", linewidth = 0.75) +
+  geom_segment(aes(x = as.Date("2022-09-01"), y = 450, xend = as.Date("2022-09-30"), yend = 450), colour = "red", linewidth = 0.75) +
+  annotate("text", cex = 2.5, y = c(413, 463), x = c(as.Date("2022-04-18"), as.Date("2022-04-07")), label= c("COMU, ATPU, BLKI", "NOGA")) +
+  ylab("Mortalities") +
+  xlab("Month") +
+  xlim(as.Date("2022-04-01"), as.Date("2022-09-30")) +
+ theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text(size = 12), axis.text.x = element_text(vjust = 0.5, size = 10), axis.text.y = element_text(size = 10))
+N_timeseries
 
-#Extra Code
-```{r make a gif}
-
-top4 <- top4 %>%
-  drop_na(Lat, Long, Total, Species)
-
-top4$Total <- as.numeric(top4$Total)
-top4$Species <- as.factor(top4$Species)
-
-top4$Lat <- as.numeric(top4$Lat)
-top4$Long <- as.numeric(top4$Long)
-
-top4 <- top4 %>% mutate(TotalCat = ifelse(Total > 50, "> 50", ifelse(Total < 10, "< 10", "10 to 50")))
-
-
-##may and june
-
-aa<-  ggplot() +
-  xlab("") + 
-  ylab("") +
-  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
-  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "D", discrete = T)+
-  geom_point(data = top4 %>% filter(Month < 7), aes(y = Lat, x = Long, colour = TotalCat), size = 3) +
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text(size = 18, face = "bold"), legend.position = "none", axis.text.x = element_text(size = 22), axis.text.y = element_text(size = 22))
-
-
-aa
-##may
- ggplot() +
-  xlab("") + 
-  ylab("") +
-  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
-  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "D", discrete = T)+
-  geom_point(data = top4 %>% filter(Month == 5), aes(y = Lat, x = Long, colour = TotalCat), size = 3) +
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text(size = 18, face = "bold"), legend.position = "none")
-
-ggplot() +
-  xlab("") + 
-  ylab("") +
-  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
-  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "D", discrete = T)+
-  geom_point(data = top4 %>% filter(Month == 6), aes(y = Lat, x = Long, colour = TotalCat), size = 3) +
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 18, face = "bold"))
-
-##july  
-bb <- ggplot() +
-  xlab("") + 
-  ylab("") +
-  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
-  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "D", , discrete = T)+
-  geom_point(data = top4 %>% filter(Month == 7), aes(y = Lat, x = Long, colour = TotalCat), size = 3) +
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 18, face = "bold"), legend.position = "none",axis.text.x = element_text(size = 22), axis.text.y = element_text(size = 22))
-bb
-
-cc <- ggplot() +
-  xlab("") + 
-  ylab("") +
-  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
-  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "D", discrete = T)+
-  geom_point(data = top4 %>% filter(Month == 8), aes(y = Lat, x = Long, colour = TotalCat), size = 3) +
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'), title = element_text( size = 18, face = "bold"),legend.position = "none", axis.text.x = element_text(size = 22), axis.text.y = element_text(size = 22))
-
-cc
-
-dd <- ggplot() +
-  xlab("") + 
-  ylab("") +
-  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
-  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "D", discrete = T)+
-  geom_point(data = top4 %>% filter(Month == 9), aes(y = Lat, x = Long, colour = TotalCat), size = 3) +
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'),  title = element_text( size = 18, face = "bold"), legend.position = "none")
-
-dd
-ggplot() +
-  xlab("") + 
-  ylab("") +
-  ggtitle("OCTOBER")+
-  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
-  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "D", discrete = T)+
-  geom_point(data = top4 %>% filter(Month == 10), aes(y = Lat, x = Long, colour = TotalCat), size = 3) +
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'),  title = element_text( size = 18, face = "bold"), legend.position = "none")
-
-ggplot() +
-  coord_fixed() +
-  xlab("") + 
-  ylab("") +
-  ggtitle("NOVEMBER")+
-  coord_cartesian(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
-  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "A")+
-  geom_point(data = top4 %>% filter(Month == 11), aes(y = Lat, x = Long, size = Total, colour = Total)) +
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'),  title = element_text( size = 18, face = "bold"), legend.position = "none")
-
-## sept, oct and nov
-ee <- ggplot() +
-  xlab("") + 
-  ylab("") +
-  coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
-  geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
-  scale_colour_viridis(option = "D", discrete = T)+
-geom_point(data = top4 %>% filter(Month >8), aes(y = Lat, x = Long, colour = TotalCat), size = 3) +
-  theme(panel.background = element_rect(fill = 'white', colour = 'black'),  title = element_text( size = 18, face = "bold"), legend.position = "none", axis.text.x = element_text(size = 22), axis.text.y = element_text(size = 22))
-
-ee
-jpeg("Figures/july gif plot.jpeg", width = 12, height = 8, units = "cm", res = 600 )
+jpeg(filename = "figures/LatTimeSeries.jpeg", height = 18, width = 15, units = "cm", res = 300)
+N_timeseries / S_timeseries
 dev.off()
-
-require(patchwork)
-aa+bb+cc+ee
-```
-
-
-```{r species analyzed}
-
-
-hpai$Species <- gsub("UNMU","COMU",hpai$Species)
-
-
-hpai_na <- hpai %>%
-  drop_na(Lat, Long, Total, Species)
-
-
-spA <- subset(hpai_na, Species %in% c("SOSH", "BAEA", "GBBG", "GRSH", "HERG","BLKI", "ATPU", "NOGA", "COMU"), select = c("Species","Date","Total"))
-
-whichBirds4 <- summaryBy(Total~Species, data = spA, FUN = c(sum))
-ggplot(whichBirds4, aes(y = Total.sum, x = Species))+ 
-  (aes(x = reorder(Species, + Total.sum)))+
-  geom_bar(stat = "identity", fill = "black")+
-  ylab("Number of Infected or Dead Birds") +
-  xlab("Species")+
-  theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text (face = "bold", size = 20), axis.text.x = element_text(face = "bold", angle = 90, vjust = 0.5, size = 15), axis.text.y = element_text(face = "bold", size = 15))+
-geom_text(aes(label = Total.sum, vjust = -1, size = 15))
-
-
-```
-
-```{r models}
-library(lubridate)
-
-top4$yDate <- yday(top4$Date)
-
-#Following the guidlelines from Zuur and Ieno 2010
-#First check outliers
-boxplot(top4$Total) #two huge outliers - may need to remove
-boxplot(top4$Lon) #looks fine
-boxplot(top4$yDate)#looks fine
-
-#check homogeneity 
-plot(lm(Long ~ yDate, data = top4))
-
-#check normality 
-hist(top4$Long)
-hist(top4$yDate)
-hist(resid(lm(Long ~ yDate, data = top4)))
-
-#relationship between x and y 
-ggplot(data = top4, aes(x = yDate, y = Long)) +
-  geom_point(aes(colour = Total)) +
-  theme_classic()
-
-#what is the longitudinal trajectory of the virus across the island of NL
-#guidelines from Zurr and Ieno 2016
-#dependency structure 
-install.packages("fitdistrplus")
-library(fitdistrplus)
-modsum <- summary(lm(Long ~ yDate, data = top4))
-plotdist(modsum$residuals, histo = TRUE, demp = TRUE)
-descdist(modsum$residuals, boot = 1000)
-
-library(glmmTMB)
-library(DHARMa)
-mod <- lm(Long ~ yDate, data = top4)
-summary(mod)
-simulateResiduals(mod, plot = T)
-
-top4$degreediff <- top4$Long + 60
-
-ggplot(data = top4, aes(x = yDate, y = degreediff)) +
-  geom_point(aes(colour = Total)) +
-  theme_classic()
-
-mod2 <- glmmTMB(degreediff ~ yDate, data = top4, family = tweedie)
-simulateResiduals(mod2, plot = T)
-
-
-mod3 <- glmmTMB(log(degreediff) ~ yDate, top4)
-simulateResiduals(mod3, plot = T)
-
-plot(log(degreediff) ~ yDate, data = top4, pch = 16)
-
-
-```
-
-```{r Which Birds}
-whichBirds <- summaryBy(Total ~ Species, data = hpai, FUN = c(sum))
-ggplot(whichBirds, aes(y = Total.sum, x = reorder(Species, -Total.sum))) + 
-  geom_bar(stat = "identity", fill = viridis(24))+
-  theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.text.x = element_text(angle = 90, vjust = 0.5))
-
-#separate scavengers and trans-equatorial migrants 
-eq <- subset(hpai, Species %in% c("GRSH", "SOSH"), select = c("Species","Date", "Total", "TotalCat"))
-
-transeq <- summaryBy(Total~Species, data = eq, FUN = c(sum))
-ggplot(transeq, aes(y = Total.sum, x = Species))+
-  (aes(x = reorder(Species, + Total.sum)))+
-  geom_bar(stat = "identity", fill = "black")+
-  ylab("Number of Infected or Dead Birds") +
-  xlab("Species")+
-theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text (face = "bold", size = 20), axis.text.x = element_text(face = "bold", angle = 90, vjust = 0.5, size = 15), axis.text.y = element_text(face = "bold", size = 15))+
-geom_text(aes(label = Total.sum, vjust = -1, size = 15))
-
-transeq <- summaryBy(Total~Species, data = eq, FUN = c(sum))
-ggplot(transeq, aes(x = reorder(Species, -Total.sum), y = Total.sum))+
-  geom_bar(stat = "identity", fill = "black")+
-  ylab("Number of Infected or Dead Birds") +
-  xlab("Species")+
-theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text (face = "bold", size = 20), axis.text.x = element_text(face = "bold", angle = 90, vjust = 0.5, size = 15), axis.text.y = element_text(face = "bold", size = 15))+
-geom_text(aes(label = Total.sum, vjust = -1, size = 15))
-
-        
-geom_text(aes(label = Total.sum, vjust = +3))
-
-
-sc <- subset(hpai, Species %in% c("HERG", "GBBG", "BAEA"), select = c("Species","Date", "Total", "TotalCat"))
-
-scavenge <- summaryBy(Total~Species, data = sc, FUN = c(sum))
-ggplot(scavenge, aes(y = Total.sum, x = Species))+ 
-  geom_bar(stat = "identity", fill = "black")+
-  ylab("Number of Infected or Dead Birds") +
-theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text (face = "bold", size = 20), axis.text.x = element_text(face = "bold", angle = 90, vjust = 0.5, size = 15), axis.text.y = element_text(face = "bold", size = 15))+
-geom_text(aes(label = Total.sum, vjust = -1, size = 15))
-
-scavenge <- summaryBy(Total~Species, data = sc, FUN = c(sum))
-ggplot(scavenge, aes(x = reorder(Species, -Total.sum), y = Total.sum))+ 
-  geom_bar(stat = "identity", fill = "black")+
-  ylab("") +
-  xlab("")+
-theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text (face = "bold", size = 20), axis.text.x = element_text(face = "bold", angle = 90, vjust = 0.5, size = 15), axis.text.y = element_text(face = "bold", size = 15))
-
-
-```
-
-
-```{r top 4 species}
-
-top4 <- top4 %>% mutate(TotalCat = ifelse(Total > 50, "> 50", ifelse(Total < 10, "< 10", "10 to 50")))
-
-
-##UNMU and COMU combined##
-top4 <- subset(top4, Species %in% c("BLKI", "ATPU", "NOGA", "COMU"), select = c("Species","Date","Total", "TotalCat"))
-
-whichBirds3 <- summaryBy(Total~Species, data = top4, FUN = c(sum))
-ggplot(whichBirds3, aes(y = Total.sum, x = Species))+ 
-  (aes(x = reorder(Species, + Total.sum)))+
-  geom_bar(stat = "identity", fill = "black")+
-  ylab("Number of Infected or Dead Birds") +
-  xlab("Species")+
-  theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text (face = "bold", size = 20), axis.text.x = element_text(face = "bold", angle = 90, vjust = 0.5, size = 15), axis.text.y = element_text(face = "bold", size = 15))+
-geom_text(aes(label = Total.sum, vjust = -1, size = 15))
-
-whichBirds3 <- summaryBy(Total~Species, data = top4, FUN = c(sum))
-ggplot(whichBirds3, aes(x = reorder(Species, -Total.sum), y = Total.sum))+ 
-  geom_bar(stat = "identity", fill = "black")+
-  ylab("") +
-  xlab("")+
-  theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text (face = "bold", size = 20), axis.text.x = element_text(face = "bold", angle = 90, vjust = 0.5, size = 15), axis.text.y = element_text(face = "bold", size = 15))
-```
-
-```{r Time series plot per species}
-freqplot <- summaryBy(Total ~ Date + Species, data = top4 %>% drop_na(Total), FUN = c(sum))
-
-ggplot(data = freqplot %>% filter(Species != "OTHER"), aes(y = Total.sum, x = Date)) +
-  scale_colour_viridis(option = "D", discrete = T) +
-         geom_line(freqplot, mapping=aes(colour = Species), cex = 1) +
-  ylab("Number of mortalities") +
-  theme(panel.background = element_rect(fill = "white", colour = "black"))
-
-
-ggplot() +
-  geom_line(data = freqplot %>% filter(Species == "COMU"), aes(x = Date, y = Total.sum), cex = 1, colour = "black") +
-  geom_line(data = freqplot %>% filter(Species == "NOGA"), aes(x = Date, y = Total.sum), cex = 1, colour = "black") +
-  geom_line(data = freqplot %>% filter(Species == "BLKI"), aes(x = Date, y = Total.sum), cex = 1, colour = "black") +
-  geom_line(data = freqplot %>% filter(Species == "ATPU"), aes(x = Date, y = Total.sum), cex = 1, colour = "black") +
-  ylab("Number of mortalities") +
-  theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text (face = "bold", size = 20), axis.text.x = element_text(face = "bold", angle = 90, vjust = 0.5, size = 15), axis.text.y = element_text(face = "bold", size = 15))
-
-COMU <- ggplot() +
-  geom_line(data = freqplot %>% filter(Species == "COMU"), aes(x = Date, y = Total.sum), cex = 1, colour = "black") +
-  geom_line(data = freqplot %>% filter(Species == "NOGA"), aes(x = Date, y = Total.sum), cex = 0, colour = "black") +
-  geom_line(data = freqplot %>% filter(Species == "BLKI"), aes(x = Date, y = Total.sum), cex = 0, colour = "black") +
-  geom_line(data = freqplot %>% filter(Species == "ATPU"), aes(x = Date, y = Total.sum), cex = 0, colour = "black") +
-  ylab("") +
-  xlab("")+
-  theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text (face = "bold", size = 20), axis.text.x = element_text(face = "bold", angle = 90, vjust = 0.5, size = 15), axis.text.y = element_text(face = "bold", size = 15))
-
-COMU
-
-NOGA <- ggplot() +
-  geom_line(data = freqplot %>% filter(Species == "COMU"), aes(x = Date, y = Total.sum), cex = 0, colour = "black") +
-  geom_line(data = freqplot %>% filter(Species == "NOGA"), aes(x = Date, y = Total.sum), cex = 1, colour = "black") +
-  geom_line(data = freqplot %>% filter(Species == "BLKI"), aes(x = Date, y = Total.sum), cex = 0, colour = "black") +
-  geom_line(data = freqplot %>% filter(Species == "ATPU"), aes(x = Date, y = Total.sum), cex = 0, colour = "black") +
-  ylab("")+
-  xlab("")+
-  theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text (face = "bold", size = 20), axis.text.x = element_text(face = "bold", angle = 90, vjust = 0.5, size = 15), axis.text.y = element_text(face = "bold", size = 15))
-
-NOGA
-
-ATPU <- ggplot() +
-  geom_line(data = freqplot %>% filter(Species == "COMU"), aes(x = Date, y = Total.sum), cex = 0, colour = "black") +
-  geom_line(data = freqplot %>% filter(Species == "NOGA"), aes(x = Date, y = Total.sum), cex = 0, colour = "black") +
-  geom_line(data = freqplot %>% filter(Species == "BLKI"), aes(x = Date, y = Total.sum), cex = 0, colour = "black") +
-  geom_line(data = freqplot %>% filter(Species == "ATPU"), aes(x = Date, y = Total.sum), cex = 1, colour = "black") +
-  ylab("") +
-  xlab("")+
-  theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title.x = element_text (face = "bold", size = 20), axis.text.x = element_text(face = "bold", angle = 90, vjust = 0.5, size = 15), axis.text.y = element_text(face = "bold", size = 15))
-
-ATPU
-
-BLKI <- ggplot() +
-  geom_line(data = freqplot %>% filter(Species == "COMU"), aes(x = Date, y = Total.sum), cex = 0, colour = "black") +
-  geom_line(data = freqplot %>% filter(Species == "NOGA"), aes(x = Date, y = Total.sum), cex = 0, colour = "black") +
-  geom_line(data = freqplot %>% filter(Species == "BLKI"), aes(x = Date, y = Total.sum), cex = 1, colour = "black") +
-  geom_line(data = freqplot %>% filter(Species == "ATPU"), aes(x = Date, y = Total.sum), cex = 0, colour = "black") +
-  ylab("") +
-  xlab("")+
-  theme(panel.background = element_rect(fill = 'white', colour = "black"), axis.title = element_text (face = "bold", size = 20), axis.text.x = element_text(face = "bold", angle = 90, vjust = 0.5, size = 15), axis.text.y = element_text(face = "bold", size = 15))
-
-BLKI
-
-COMU+NOGA+ATPU+BLKI
 ```

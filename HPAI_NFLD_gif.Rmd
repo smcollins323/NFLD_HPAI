@@ -3,6 +3,8 @@ title: "HPAI_gif"
 author: "Sydney Collins"
 date: "2023-10-25"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r Load Packages}
@@ -67,8 +69,8 @@ for(i in id_arr2) {
   
   print(ggplot() +
   coord_map() +
-  xlab("Long") + 
-  ylab("Lat") +
+  xlab("Longitude") + 
+  ylab("Latitude") +
   ggtitle(sub_title2) +
   coord_map(xlim = c(-60.5, -51.75), ylim = c(46, 52.25))+
   geom_polygon(data = Canada, aes(x = long, y = lat, group = group), colour = "black", fill = "lightgrey") +
@@ -88,4 +90,5 @@ img_joined2 <- image_join(img_list2)
 img_animated2 <- image_animate(img_joined2, fps = 4)
 
 image_write(image = img_animated2, path = "figures/CumulativeMaps.gif")
+beep()
 ```
